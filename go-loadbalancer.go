@@ -63,7 +63,7 @@ func random(min, max int) int {
 
 // thank you bradfitz, https://groups.google.com/forum/#!topic/golang-nuts/KBx9pDlvFOc
 func websocketProxy(w http.ResponseWriter, r *http.Request) {
-	target := strings.Replace(urls[0], "http://", "", 1) + r.URL.String()
+	target := strings.Replace(urls[random(0, 3)], "http://", "", 1) + r.URL.String()
 	d, err := net.Dial("tcp", target)
 	if err != nil {
 		http.Error(w, "Error contacting backend server.", 500)
