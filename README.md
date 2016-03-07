@@ -1,4 +1,4 @@
-# a simple load balancer / proxy
+# A simple load balancer / proxy
 
 It will proxy http and websocket, using myself for proxying socket.io.
 
