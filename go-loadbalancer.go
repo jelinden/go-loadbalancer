@@ -29,7 +29,7 @@ func main() {
 func proxy(w http.ResponseWriter, req *http.Request) {
 	t1 := time.Now()
 	lbReq, _ := http.NewRequest("GET", urls[random(0, 3)]+req.URL.String(), nil)
-	copyHeader(req.Header, lbReq.Header)
+	copyHeader(lbReq.Header, req.Header)
 	response, err := httpClient.Do(lbReq)
 	if err != nil {
 		fmt.Printf("%s", err)
