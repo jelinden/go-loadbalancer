@@ -9,17 +9,11 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 )
 
 var urls []string
 var httpClient = &http.Client{}
-
-func init() {
-	urls = strings.Split(os.Getenv("BALANCED_URLS"), ",")
-}
 
 func main() {
 	http.HandleFunc("/socket.io/", websocketProxy)
@@ -121,7 +115,8 @@ func websocketProxy(w http.ResponseWriter, r *http.Request) {
 
 func getIps() {
 	go func() {
-		for _ = range time.Tick(5 * time.Second) {
+		for _ = range time.Tick(10 * time.Second) {
+			var tempUrls []string
 			resp, err := httpClient.Get("http://192.168.0.6:8080/api/v1/namespaces/default/pods")
 			if err != nil {
 				log.Println(err)
@@ -135,9 +130,11 @@ func getIps() {
 				status := item["status"]
 				hostIP := status["hostIP"].(string)
 				if hostIP[0:7] == "192.168" {
-					//fmt.Println(status["podIP"])
+					tempUrls = append(tempUrls, status["podIP"].(string))
 				}
 			}
+			urls = tempUrls
+			fmt.Println(urls)
 		}
 	}()
 }
