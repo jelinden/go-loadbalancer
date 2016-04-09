@@ -27,7 +27,7 @@ func proxy(w http.ResponseWriter, req *http.Request) {
 	backend, _ := req.Cookie("backend")
 	target := urls[random(0, 3)]
 	var isCookieSet = false
-	if backend != nil && backend.Value != "" {
+	if backend != nil && backend.Value != "" && contains(urls, backend.Value) {
 		target = backend.Value
 		isCookieSet = true
 	}
@@ -73,7 +73,7 @@ func random(min, max int) int {
 func websocketProxy(w http.ResponseWriter, r *http.Request) {
 	backend, _ := r.Cookie("backend")
 	target := urls[random(0, 3)]
-	if backend.Value != "" {
+	if backend.Value != "" && contains(urls, backend.Value) {
 		target = backend.Value
 	}
 	targetURL := "[" + target + "]:1300" + r.URL.String()
@@ -141,4 +141,13 @@ func getIps() {
 			}
 		}
 	}()
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
