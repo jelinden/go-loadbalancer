@@ -16,6 +16,7 @@ var urls []string
 var httpClient = &http.Client{}
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	http.HandleFunc("/socket.io/", websocketProxy)
 	http.HandleFunc("/", proxy)
 	getIps()
