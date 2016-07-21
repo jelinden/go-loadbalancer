@@ -2,17 +2,17 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
-var urls []string
+var urls atomic.Value
 var httpClient = &http.Client{}
 
 func main() {
@@ -27,9 +27,10 @@ func main() {
 func proxy(w http.ResponseWriter, req *http.Request) {
 	t1 := time.Now()
 	backend, _ := req.Cookie("backend")
-	target := urls[random(0, len(urls))]
+
+	target := urls.Load().([]string)[random(0, len(urls.Load().([]string)))]
 	var isCookieSet = false
-	if backend != nil && backend.Value != "" && contains(urls, backend.Value) {
+	if backend != nil && backend.Value != "" && contains(urls.Load().([]string), backend.Value) {
 		target = backend.Value
 		isCookieSet = true
 	}
@@ -37,13 +38,13 @@ func proxy(w http.ResponseWriter, req *http.Request) {
 	copyHeader(lbReq.Header, req.Header)
 	response, err := httpClient.Do(lbReq)
 	if err != nil {
-		fmt.Printf("%s", err)
+		log.Printf("%s", err)
 		w.WriteHeader(500)
 	} else {
 		defer response.Body.Close()
 		contents, err2 := ioutil.ReadAll(response.Body)
 		if err2 != nil {
-			fmt.Printf("%s", err2)
+			log.Printf("%s", err2)
 			w.WriteHeader(500)
 		} else {
 			copyHeader(w.Header(), response.Header)
@@ -74,8 +75,8 @@ func random(min, max int) int {
 // thank you bradfitz, https://groups.google.com/forum/#!topic/golang-nuts/KBx9pDlvFOc
 func websocketProxy(w http.ResponseWriter, r *http.Request) {
 	backend, _ := r.Cookie("backend")
-	target := urls[random(0, len(urls))]
-	if backend.Value != "" && contains(urls, backend.Value) {
+	target := urls.Load().([]string)[random(0, len(urls.Load().([]string)))]
+	if backend.Value != "" && contains(urls.Load().([]string), backend.Value) {
 		target = backend.Value
 	}
 	targetURL := "[" + target + "]:1300" + r.URL.String()
@@ -141,7 +142,7 @@ func getIps() {
 		}
 	}
 	if len(tempUrls) > 0 {
-		urls = tempUrls
+		urls.Store(tempUrls)
 	}
 }
 
