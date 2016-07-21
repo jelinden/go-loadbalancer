@@ -16,17 +16,18 @@ var urls []string
 var httpClient = &http.Client{}
 
 func main() {
+	getIps()
 	rand.Seed(time.Now().UnixNano())
 	http.HandleFunc("/socket.io/", websocketProxy)
 	http.HandleFunc("/", proxy)
-	getIps()
+	go getIpsTimer()
 	http.ListenAndServe(":8000", nil)
 }
 
 func proxy(w http.ResponseWriter, req *http.Request) {
 	t1 := time.Now()
 	backend, _ := req.Cookie("backend")
-	target := urls[random(0, 3)]
+	target := urls[random(0, len(urls))]
 	var isCookieSet = false
 	if backend != nil && backend.Value != "" && contains(urls, backend.Value) {
 		target = backend.Value
@@ -73,7 +74,7 @@ func random(min, max int) int {
 // thank you bradfitz, https://groups.google.com/forum/#!topic/golang-nuts/KBx9pDlvFOc
 func websocketProxy(w http.ResponseWriter, r *http.Request) {
 	backend, _ := r.Cookie("backend")
-	target := urls[random(0, 3)]
+	target := urls[random(0, len(urls))]
 	if backend.Value != "" && contains(urls, backend.Value) {
 		target = backend.Value
 	}
@@ -114,34 +115,34 @@ func websocketProxy(w http.ResponseWriter, r *http.Request) {
 	<-errc
 }
 
+func getIpsTimer() {
+	for _ = range time.Tick(10 * time.Second) {
+		getIps()
+	}
+}
 func getIps() {
-	go func() {
-		for _ = range time.Tick(10 * time.Second) {
-			var tempUrls []string
-			resp, err := httpClient.Get("http://192.168.0.6:8080/api/v1/namespaces/default/pods")
-			if err != nil {
-				log.Println(err)
-			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			var parsed map[string][]map[string]map[string]interface{}
-			json.Unmarshal(body, &parsed)
-			var items = parsed["items"]
-			for _, item := range items {
-				status := item["status"]
-				if status["hostIP"] != nil {
-					hostIP := status["hostIP"].(string)
-					if hostIP[0:7] == "192.168" && status["podIP"] != nil {
-						tempUrls = append(tempUrls, status["podIP"].(string))
-					}
-				}
-			}
-			if len(tempUrls) > 0 {
-				urls = tempUrls
-				fmt.Println(urls)
+	var tempUrls []string
+	resp, err := httpClient.Get("http://192.168.0.6:8080/api/v1/namespaces/default/pods")
+	if err != nil {
+		log.Println(err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	var parsed map[string][]map[string]map[string]interface{}
+	json.Unmarshal(body, &parsed)
+	var items = parsed["items"]
+	for _, item := range items {
+		status := item["status"]
+		if status["hostIP"] != nil {
+			hostIP := status["hostIP"].(string)
+			if hostIP[0:7] == "192.168" && status["podIP"] != nil {
+				tempUrls = append(tempUrls, status["podIP"].(string))
 			}
 		}
-	}()
+	}
+	if len(tempUrls) > 0 {
+		urls = tempUrls
+	}
 }
 
 func contains(s []string, e string) bool {
