@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -10,18 +11,40 @@ import (
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/crypto/acme/autocert"
 )
 
 var urls atomic.Value
 var httpClient = &http.Client{}
 
+const domain = "www.uutispuro.fi"
+
 func main() {
 	getIps()
-	rand.Seed(time.Now().UnixNano())
 	http.HandleFunc("/socket.io/", websocketProxy)
 	http.HandleFunc("/", proxy)
 	go getIpsTimer()
-	http.ListenAndServe(":8000", nil)
+
+	certCache := "tmp/certs"
+	key, cert := "", ""
+
+	certManager := autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(domain),
+		Cache:      autocert.DirCache(certCache),
+	}
+	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello world with let's encrypt"))
+	})
+
+	server := &http.Server{
+		Addr: ":443",
+		TLSConfig: &tls.Config{
+			GetCertificate: certManager.GetCertificate,
+		},
+	}
+	server.ListenAndServeTLS(key, cert)
 }
 
 func proxy(w http.ResponseWriter, req *http.Request) {
@@ -69,6 +92,7 @@ func copyHeader(dst, src http.Header) {
 }
 
 func random(min, max int) int {
+	rand.Seed(time.Now().UnixNano())
 	return rand.Intn(max-min) + min
 }
 
