@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -11,8 +10,6 @@ import (
 	"net/http"
 	"sync/atomic"
 	"time"
-
-	"golang.org/x/crypto/acme/autocert"
 )
 
 var urls atomic.Value
@@ -25,26 +22,8 @@ func main() {
 	http.HandleFunc("/socket.io/", websocketProxy)
 	http.HandleFunc("/", proxy)
 	go getIpsTimer()
-
-	certCache := "tmp/certs"
-	key, cert := "", ""
-
-	certManager := autocert.Manager{
-		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(domain),
-		Cache:      autocert.DirCache(certCache),
-	}
-	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello world with let's encrypt"))
-	})
-
-	server := &http.Server{
-		Addr: ":443",
-		TLSConfig: &tls.Config{
-			GetCertificate: certManager.GetCertificate,
-		},
-	}
-	server.ListenAndServeTLS(key, cert)
+	log.Println("starting server in port 8000")
+	http.ListenAndServe(":8000", nil)
 }
 
 func proxy(w http.ResponseWriter, req *http.Request) {
@@ -103,7 +82,7 @@ func websocketProxy(w http.ResponseWriter, r *http.Request) {
 	if backend.Value != "" && contains(urls.Load().([]string), backend.Value) {
 		target = backend.Value
 	}
-	targetURL := "[" + target + "]:1300" + r.URL.String()
+	targetURL := "[" + target + "]:1300"
 	d, err := net.Dial("tcp", targetURL)
 	if err != nil {
 		http.Error(w, "Error contacting backend server.", 500)
