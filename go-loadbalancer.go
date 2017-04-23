@@ -137,11 +137,8 @@ func getIps() {
 	var items = parsed["items"]
 	for _, item := range items {
 		status := item["status"]
-		if status["hostIP"] != nil {
-			hostIP := status["hostIP"].(string)
-			if hostIP[0:7] == "192.168" && status["podIP"] != nil {
-				tempUrls = append(tempUrls, status["podIP"].(string))
-			}
+		if status["podIP"] != nil {
+			tempUrls = append(tempUrls, status["podIP"].(string))
 		}
 	}
 	if len(tempUrls) > 0 {
