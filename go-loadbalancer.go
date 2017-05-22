@@ -79,7 +79,7 @@ func random(min, max int) int {
 func websocketProxy(w http.ResponseWriter, r *http.Request) {
 	backend, _ := r.Cookie("backend")
 	target := urls.Load().([]string)[random(0, len(urls.Load().([]string)))]
-	if backend.Value != "" && contains(urls.Load().([]string), backend.Value) {
+	if backend != nil && backend.Value != "" && contains(urls.Load().([]string), backend.Value) {
 		target = backend.Value
 	}
 	targetURL := "[" + target + "]:1300"
