@@ -137,7 +137,8 @@ func getIps() {
 	var items = parsed["items"]
 	for _, item := range items {
 		status := item["status"]
-		if status["podIP"] != nil {
+		meta := item["metadata"]
+		if status["podIP"] != nil && meta["generateName"] == "newsfeedreader-" {
 			tempUrls = append(tempUrls, status["podIP"].(string))
 		}
 	}
