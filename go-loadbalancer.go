@@ -28,38 +28,34 @@ func main() {
 
 func proxy(w http.ResponseWriter, req *http.Request) {
 	t1 := time.Now()
-	backend, _ := req.Cookie("backend")
-
-	target := urls.Load().([]string)[random(0, len(urls.Load().([]string)))]
-	var isCookieSet = false
-	if backend != nil && backend.Value != "" && contains(urls.Load().([]string), backend.Value) {
-		target = backend.Value
-		isCookieSet = true
+	content := getTarget(&w, req)
+	if content == nil {
+		w.WriteHeader(500)
+	} else {
+		w.Write(content)
 	}
+	t2 := time.Now()
+	log.Printf("[%s] %v %q %v\n", req.Method, w.Header().Get("status"), req.URL.String(), t2.Sub(t1))
+}
+
+func getTarget(w *http.ResponseWriter, req *http.Request) []byte {
+	target := urls.Load().([]string)[random(0, len(urls.Load().([]string)))]
 	lbReq, _ := http.NewRequest("GET", "http://["+target+"]:1300"+req.URL.String(), nil)
 	copyHeader(lbReq.Header, req.Header)
 	response, err := httpClient.Do(lbReq)
 	if err != nil {
-		log.Printf("%s", err)
-		w.WriteHeader(500)
-	} else {
-		defer response.Body.Close()
-		contents, err2 := ioutil.ReadAll(response.Body)
-		if err2 != nil {
-			log.Printf("%s", err2)
-			w.WriteHeader(500)
-		} else {
-			copyHeader(w.Header(), response.Header)
-			if !isCookieSet {
-				expiration := time.Now().Add(24 * time.Hour)
-				http.SetCookie(w, &http.Cookie{Name: "backend", Value: target, Expires: expiration, Path: "/"})
-			}
-			w.WriteHeader(response.StatusCode)
-			w.Write(contents)
-		}
+		log.Println(err.Error())
+		return nil
 	}
-	t2 := time.Now()
-	log.Printf("[%s] %v %q %v\n", req.Method, response.StatusCode, req.URL.String(), t2.Sub(t1))
+	defer response.Body.Close()
+	content, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Println(err.Error())
+		return nil
+	}
+	copyHeader((*w).Header(), response.Header)
+	(*w).WriteHeader(response.StatusCode)
+	return content
 }
 
 func copyHeader(dst, src http.Header) {
@@ -124,6 +120,7 @@ func getIpsTimer() {
 		getIps()
 	}
 }
+
 func getIps() {
 	var tempUrls []string
 	resp, err := httpClient.Get("http://192.168.0.6:8080/api/v1/namespaces/default/pods")
